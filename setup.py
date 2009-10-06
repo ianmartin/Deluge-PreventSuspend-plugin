@@ -43,7 +43,7 @@ __version__ = "0.1"
 __url__ = "http://deluge-torrent.org"
 __license__ = "GPLv3"
 __description__ = "Prevent suspend plugin for deluge"
-__long_description__ = """"""
+__long_description__ = """Prevents suspending of the computer whilst loaded"""
 __pkg_data__ = {}
 
 setup(
