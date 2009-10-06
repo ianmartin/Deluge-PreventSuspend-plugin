@@ -26,4 +26,14 @@ class CorePlugin(PluginBase):
             from core import Core
             self.plugin = Core(plugin_api, plugin_name)
         except Exception, e:
-            log.Error("Failed to load  PreventSuspend core plugin: %s", e)
+            log.error("Failed to load  PreventSuspend core plugin: %s", e)
+
+
+class GtkUIPlugin(PluginBase):
+    def __init__(self, plugin_api, plugin_name):
+        # Load the GtkUI portion of the plugin
+        try:
+            from gtkui import GtkUI
+            self.plugin = GtkUI(plugin_api, plugin_name)
+        except Exception, e:
+            log.error("Failed to load PreventSuspend gtk ui plugin: %s", e)

@@ -39,14 +39,14 @@ from setuptools import setup
 __plugin_name__ = "PreventSuspend"
 __maintainer__ = "Ian Martin"
 __maintainer_email__ = "ianmartin@cantab.net"
-__version__ = "0.1"
+__version__ = "0.2"
 __url__ = "http://deluge-torrent.org"
 __license__ = "GPLv3"
 __description__ = "Prevent suspend plugin for deluge"
 __long_description__ = """
 Prevents suspending of the
 computer whilst loaded"""
-__pkg_data__ = {}
+__pkg_data__ = {__plugin_name__.lower(): ["data/*"]}
 
 setup(
     name=__plugin_name__,
@@ -64,5 +64,7 @@ setup(
     entry_points="""
     [deluge.plugin.core]
     %s = %s:CorePlugin
-    """ % (__plugin_name__, __plugin_name__.lower())
+    [deluge.plugin.gtkui]
+    %s = %s:GtkUIPlugin
+    """ % ((__plugin_name__, __plugin_name__.lower())*2)
 )
