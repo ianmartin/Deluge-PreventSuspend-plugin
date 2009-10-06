@@ -37,3 +37,12 @@ class GtkUIPlugin(PluginBase):
             self.plugin = GtkUI(plugin_api, plugin_name)
         except Exception, e:
             log.error("Failed to load PreventSuspend gtk ui plugin: %s", e)
+
+class WebUIPlugin(PluginBase):
+    def __init__(self, plugin_api, plugin_name):
+        # Load the GtkUI portion of the plugin
+        try:
+            from webui import WebUI
+            self.plugin = WebUI(plugin_api, plugin_name)
+        except Exception, e:
+            log.error("Failed to load PreventSuspend WebUI plugin: %s", e)
