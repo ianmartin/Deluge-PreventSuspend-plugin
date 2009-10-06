@@ -49,7 +49,7 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkComboBoxEntry" id="combo_preventwhen">
+                          <widget class="GtkComboBox" id="combo_preventwhen">
                             <property name="visible">True</property>
                             <property name="items" translatable="yes">Downloading
 Downloading or Seeding
