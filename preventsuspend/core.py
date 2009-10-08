@@ -41,6 +41,8 @@ DEFAULT_PREFS= {
 	"preventwhen": 1
 }
 
+APPNAME = "Deluge"
+REASON = 'Downloading torrents'
 
 def check_state(states):
 	"""Returns true if at least one of the torrents is in one of the states in states[]"""
@@ -64,6 +66,41 @@ def downloading_or_seeding():
 	log.debug("downloading or seeding status: %s" % status)
 	return status
 
+class DBusInhibitor:
+	def __init__(self, name, path, interface, method=["Inhibit", "UnInhibit"]):
+		self.name = name
+		self.path = path
+		self.interface_name = interface
+		
+		import dbus
+		bus = dbus.SessionBus()
+		devobj = bus.get_object(self.name, self.path)
+		self.iface = dbus.Interface(devobj, self.interface_name)
+		# Check we have the right attributes
+		self._inhibit = getattr(self.iface, method[0])
+		self._uninhibit = getattr(self.iface, method[1])
+
+	def inhibit(self):
+		self.cookie = self._inhibit(APPNAME, REASON)
+
+	def uninhibit(self):
+		self._uninhibit(self.cookie)
+
+class GnomeSessionInhibitor(DBusInhibitor):
+	TOPLEVEL_XID = 0
+	INHIBIT_SUSPEND = 4
+	def __init__(self):
+		DBusInhibitor.__init__(self, 'org.gnome.SessionManager',
+				             '/org/gnome/SessionManager',
+				             "org.gnome.SessionManager",
+				             ["Inhibit", "Uninhibit"])
+
+	def inhibit(self):
+		self.cookie = self._inhibit(APPNAME,
+					    GnomeSessionInhibitor.TOPLEVEL_XID,
+					    REASON,
+					    GnomeSessionInhibitor.INHIBIT_SUSPEND)
+
 ### PLUGIN ###
 
 class Core(CorePluginBase):	
@@ -71,18 +108,23 @@ class Core(CorePluginBase):
 		log.info("Enable Prevent Suspend core plugin")
 		self.config = deluge.configmanager.ConfigManager("preventsuspend.conf", DEFAULT_PREFS)
       
-                self.dev = None
-                self.cookie = None
+                self.inhibited = False
 		self.update_timer = None
+
+
+		self.inhibitor = self._get_inhibitor()
 
 		self.update()
 	
 	def disable(self):
 		log.info("Disable Prevent Suspend core plugin")
 		self.stop_timer()
+		if self.inhibitor is not None:
+			if self.inhibited: 
+				self.inhibitor.uninhibit()
+			del self.inhibitor
+			self.inhibitor = None
 		self.config.save()
-		self.allow_sleep()
-		self.dev = None
 
 	def start_timer(self):
 		if self.update_timer is None:
@@ -106,85 +148,54 @@ class Core(CorePluginBase):
 		return inhibit
 
 	def update(self):
+		if self.inhibitor is None:
+			return False
+
 		if self.config["enabled"]:
 			self.start_timer()
 			if self.should_inhibit():
-				self.inhibit_sleep()
+				if not self.inhibited:
+					self.inhibitor.inhibit()
+					self.inhibited = True
 			else:
-				self.allow_sleep()
+				if self.inhibited:
+					self.inhibitor.uninhibit()
+					self.inhibited = False
 		else:
 			self.stop_timer()
-			self.allow_sleep()
+			if self.inhibited:
+				self.inhibitor.uninhibit()
+				self.inhibited = False
 		return True
-		
-	#Pretty much stolen from update-manager and modified to fit including fixing
-	# bug https://bugs.launchpad.net/bugs/140754
-	def inhibit_sleep(self):
-		"""
-		Send a dbus signal to power-manager to not suspend
-		the system, try both the new freedesktop and the
-		old gnome dbus interface
-		"""
 
-		if self.cookie is not None:
-			return True
-
-		if self.dev is not None:
-			return self.dev.Inhibit()
-
+	def _get_inhibitor(self):
 		try:
-			return self._inhibit_sleep_new_interface()
-		except Exception, e:
-			log.debug("Could not send the dbus Inhibit signal using freedesktop interface: %s" % e)
+			return GnomeSessionInhibitor()
+		except Exception as e:
+			log.debug("Could not initialise the gnomesession interface: %s" % e)
 		
 		try:
-			return self._inhibit_sleep_old_interface()
+			return DBusInhibitor('org.freedesktop.PowerManagement', 
+					     '/org/freedesktop/PowerManagement/Inhibit',
+					     'org.freedesktop.PowerManagement.Inhibit')
 		except Exception, e:
-			log.debug("Could not send the dbus Inhibit signal using gnome interface: %s" % e)
+			log.debug("Could not initialise the freedesktop interface: %s" % e)
+		
+		try:
+			return DBusInhibitor('org.gnome.PowerManager', 
+					     '/org/gnome/PowerManager',
+					     'org.gnome.PowerManager')
+		except Exception, e:
+			log.debug("Could not initialise the gnome interface: %s" % e)
 
-		return False
-
-	def allow_sleep(self):
-		"""Send a dbus signal to gnome-power-manager to allow a suspending
-		the system"""
-		if self.dev is not None:
-			if self.cookie is not None:
-				try:
-					self.dev.UnInhibit(self.cookie)
-				except Exception, e:
-					log.error("Unable to send the dbus UnInhibit signal: %s" % e)
-				self.cookie = None
-
-	def _inhibit_sleep_old_interface(self):	
-		"""
-		Send a dbus signal to org.gnome.PowerManager to not suspend
-		the system, this is to support pre-gutsy
-		"""
-		import dbus
-		bus = dbus.SessionBus()
-		devobj = bus.get_object('org.gnome.PowerManager', 
-								'/org/gnome/PowerManager')
-		self.dev = dbus.Interface(devobj, "org.gnome.PowerManager")
-		self.cookie = self.dev.Inhibit('Deluge', 'Downloading torrents')
-		return True
-
-	def _inhibit_sleep_new_interface(self):
-		"""
-		Send a dbus signal to gnome-power-manager to not suspend
-		the system
-		"""
-		import dbus
-		bus = dbus.SessionBus()
-		devobj = bus.get_object('org.freedesktop.PowerManagement', 
-								'/org/freedesktop/PowerManagement/Inhibit')
-		self.dev = dbus.Interface(devobj, "org.freedesktop.PowerManagement.Inhibit")
-		self.cookie = self.dev.Inhibit('Deluge', 'Downloading torrents')
-		return True
-
+		return None
+	
 
 	def export_get_config(self):
 		"""Returns the config dictionary"""
-		return self.config.config
+		out = self.config.config
+		out["_can_inhibit"] = self.inhibitor is not None
+		return out
 
 	def export_set_config(self, config):
 		"""Sets the config based on values in 'config'"""
