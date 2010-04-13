@@ -26,15 +26,5 @@
 import pkg_resources
 import os.path
 
-class UI:
-    def __init__(self, plugin_api, plugin_name):
-        self.plugin = plugin_api
-
-    def enable(self):
-        pass
-
-    def disable(self):
-        pass
-
-    def get_resource(self, filename):
-        return pkg_resources.resource_filename("preventsuspend", os.path.join("data", filename))
+def get_resource(filename):
+    return pkg_resources.resource_filename("preventsuspend", os.path.join("data", filename))

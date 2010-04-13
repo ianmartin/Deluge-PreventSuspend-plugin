@@ -17,32 +17,23 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-from deluge.log import LOG as log
-from deluge.plugins.init import PluginBase
+from deluge.plugins.init import PluginInitBase
 
-class CorePlugin(PluginBase):
-    def __init__(self, plugin_api, plugin_name):
-        try:
-            from core import Core
-            self.plugin = Core(plugin_api, plugin_name)
-        except Exception, e:
-            log.error("Failed to load  PreventSuspend core plugin: %s", e)
+class CorePlugin(PluginInitBase):
+    def __init__(self, plugin_name):
+        from core import Core as _plugin_cls
+        self._plugin_cls = _plugin_cls
+        super(CorePlugin, self).__init__(plugin_name)
 
+class GtkUIPlugin(PluginInitBase):
+    def __init__(self, plugin_name):
+        from gtkui import GtkUI as _plugin_cls
+        self._plugin_cls = _plugin_cls
+        super(GtkUIPlugin, self).__init__(plugin_name)
 
-class GtkUIPlugin(PluginBase):
-    def __init__(self, plugin_api, plugin_name):
-        # Load the GtkUI portion of the plugin
-        try:
-            from gtkui import GtkUI
-            self.plugin = GtkUI(plugin_api, plugin_name)
-        except Exception, e:
-            log.error("Failed to load PreventSuspend gtk ui plugin: %s", e)
+class WebUIPlugin(PluginInitBase):
+    def __init__(self, plugin_name):
+        from webui import WebUI as _plugin_cls
+        self._plugin_cls = _plugin_cls
+        super(WebUIPlugin, self).__init__(plugin_name)
 
-class WebUIPlugin(PluginBase):
-    def __init__(self, plugin_api, plugin_name):
-        # Load the GtkUI portion of the plugin
-        try:
-            from webui import WebUI
-            self.plugin = WebUI(plugin_api, plugin_name)
-        except Exception, e:
-            log.error("Failed to load PreventSuspend WebUI plugin: %s", e)

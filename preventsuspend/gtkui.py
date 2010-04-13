@@ -36,25 +36,30 @@
 
 import gtk
 
+from deluge import component
 from deluge.log import LOG as log
-from deluge.ui.client import aclient
+from deluge.ui.client import client
+from deluge.plugins.pluginbase import GtkPluginBase
 
+import common
 
-import ui
-
-class GtkUI(ui.UI):
+class GtkUI(GtkPluginBase):
     def enable(self):
-        self.glade = gtk.glade.XML(self.get_resource("prefs.glade"))
+        self.glade = gtk.glade.XML(common.get_resource("prefs.glade"))
         self.glade.get_widget("chk_enable").connect("toggled", self._on_enabled_toggled)
-        self.plugin.add_preferences_page("Prevent Suspend", self.glade.get_widget("prefs_box"))
-        self.plugin.register_hook("on_apply_prefs", self.on_apply_prefs)
-        self.plugin.register_hook("on_show_prefs", self.on_show_prefs)
+
+        component.get("Preferences").add_page("Prevent Suspend",
+                                              self.glade.get_widget("prefs_box"))
+        plugin_manager = component.get("PluginManager")
+        plugin_manager.register_hook("on_apply_prefs", self.on_apply_prefs)
+        plugin_manager.register_hook("on_show_prefs", self.on_show_prefs)
         self.on_show_prefs()
 
     def disable(self):
-        self.plugin.remove_preferences_page("Prevent Suspend")
-        self.plugin.deregister_hook("on_apply_prefs", self.on_apply_prefs)
-        self.plugin.deregister_hook("on_show_prefs", self.on_show_prefs)
+        component.get("Preferences").remove_page("Prevent Suspend")
+        plugin_manager = component.get("PluginManager")
+        plugin_manager.deregister_hook("on_apply_prefs", self.on_apply_prefs)
+        plugin_manager.deregister_hook("on_show_prefs", self.on_show_prefs)
 
 
     def on_apply_prefs(self):
@@ -62,10 +67,10 @@ class GtkUI(ui.UI):
         config = {}
         config["enabled"] = self.glade.get_widget("chk_enable").get_active()
         config["preventwhen"] = self.glade.get_widget("combo_preventwhen").get_active()
-        aclient.preventsuspend_set_config(None, config)
+        client.preventsuspend.set_config(config)
 
     def on_show_prefs(self):
-        aclient.preventsuspend_get_config(self._on_get_config)
+        client.preventsuspend.get_config().addCallback(self._on_get_config)
 
     def _on_get_config(self, config):
         "callback for on show_prefs"

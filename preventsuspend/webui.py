@@ -1,5 +1,5 @@
 import deluge.ui.webui.lib.newforms_plus as forms
-from deluge.ui.client import sclient
+from deluge.ui.client import client
 from deluge import component
 from deluge.log import LOG as log
 
@@ -27,7 +27,7 @@ class PreventSuspendCfgForm(forms.Form):
     preventwhen = forms.IntChoiceField(label=_("Prevent when"),
                                     choices=enumerate(PREVENT_WHEN_LIST))
 
-class WebUI(ui.UI):
+class WebUI(WebPluginBase):
    def enable(self):
        log.debug("**ENABLING prevent suspend webui plugin**")
        component.get("ConfigPageManager").register('plugins',

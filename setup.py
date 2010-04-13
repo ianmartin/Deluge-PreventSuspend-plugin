@@ -39,7 +39,7 @@ from setuptools import setup
 __plugin_name__ = "PreventSuspend"
 __maintainer__ = "Ian Martin"
 __maintainer_email__ = "ianmartin@cantab.net"
-__version__ = "0.2"
+__version__ = "0.3"
 __url__ = "http://deluge-torrent.org"
 __license__ = "GPLv3"
 __description__ = "Prevent suspend plugin for deluge"

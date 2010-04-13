@@ -23,18 +23,14 @@
 # 	Boston, MA    02110-1301, USA.
 #
 
-import gobject
+from twisted.internet.task import LoopingCall
 
 import deluge
-from deluge.plugins.corepluginbase import CorePluginBase
+from deluge.plugins.pluginbase import CorePluginBase
 import deluge.component as component
 from deluge.log import LOG as log
+from deluge.core.rpcserver import export
 
-plugin_name = "Prevent Suspend"
-plugin_author = "Andreas Dalsgaard"
-plugin_version = "0.1"
-plugin_description = _("""
-Make deluge prevent the computer from suspending or hibernating""")
 
 DEFAULT_PREFS= {
 	"enabled": True,
@@ -46,7 +42,7 @@ REASON = 'Downloading torrents'
 
 def check_state(states):
 	"""Returns true if at least one of the torrents is in one of the states in states[]"""
-	status = component.get("Core").export_get_torrents_status(None, ["state"])
+	status = component.get("Core").get_torrents_status(None, ["state"])
 	in_states = False
 	for torrent in status:
 		if status[torrent]["state"] in states:
@@ -105,7 +101,7 @@ class GnomeSessionInhibitor(DBusInhibitor):
 
 class Core(CorePluginBase):	
 	def enable(self):
-		log.info("Enable Prevent Suspend core plugin")
+		log.info("Prevent Suspend core plugin enabled")
 		self.config = deluge.configmanager.ConfigManager("preventsuspend.conf", DEFAULT_PREFS)
       
                 self.inhibited = False
@@ -117,7 +113,7 @@ class Core(CorePluginBase):
 		self.update()
 	
 	def disable(self):
-		log.info("Disable Prevent Suspend core plugin")
+		log.info("Prevent Suspend core plugin disabled")
 		self.stop_timer()
 		if self.inhibitor is not None:
 			if self.inhibited: 
@@ -128,12 +124,13 @@ class Core(CorePluginBase):
 
 	def start_timer(self):
 		if self.update_timer is None:
-			self.update_timer = gobject.timeout_add(10000, self.update)
+			self.update_timer = LoopingCall(self.update)
+			self.update_timer.start(10)
 			log.debug("time started")
 
 	def stop_timer(self):
 		if self.update_timer is not None:
-			gobject.source_remove(self.update_timer)
+			self.update_timer.stop()
 			log.debug("time stopped")
 			self.update_timer = None
 
@@ -190,14 +187,15 @@ class Core(CorePluginBase):
 
 		return None
 	
-
-	def export_get_config(self):
+	@export
+	def get_config(self):
 		"""Returns the config dictionary"""
 		out = self.config.config
 		out["_can_inhibit"] = self.inhibitor is not None
 		return out
 
-	def export_set_config(self, config):
+	@export
+	def set_config(self, config):
 		"""Sets the config based on values in 'config'"""
 		for key in config.keys():
 			self.config[key] = config[key]
